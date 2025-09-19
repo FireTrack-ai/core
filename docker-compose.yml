@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: orders
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/postgres/data/:/var/lib/postgresql/data/
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8085:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=redpanda:9092
+    depends_on:
+      - redpanda
+  migrator:
+    build:
+      context: .
+      dockerfile: ./docker/migrator/Dockerfile
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: orders
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DSN: postgres://user:pass@postgres:5432/orders?sslmode=disable
+    depends_on:
+      - postgres
+    command: [ "./wait-and-migrate.sh" ]  # Подождать и прогнать миграции
+    volumes:
+      - ./migrations:/app/migrations
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./cmd:/app/cmd
+      - ./internal:/app/internal
+      - ./go.mod:/app/go.mod
+      - ./go.sum:/app/go.sum
+      - ./migrations:/app/migrations
+      - ./configs/.env.yml:/app/configs/.env.yml
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      - DATABASE_URL=postgres://user:pass@postgres:5432/orders?sslmode=disable
+      - KAFKA_BROKER=redpanda:9092
+  consumer:
+    build:
+      context: .
+      dockerfile: ./docker/consumer/Dockerfile
+    volumes:
+      - ./cmd:/app/cmd
+      - ./internal:/app/internal
+      - ./go.mod:/app/go.mod
+      - ./go.sum:/app/go.sum
+      - ./migrations:/app/migrations
+      - ./configs/.env.yml:/app/configs/.env.yml
+    ports:
+      - "8082:8082"
+    depends_on:
+      - redpanda
+      - postgres
+    environment:
+      - KAFKA_BROKER=redpanda:9092
+
+volumes:
+  pgdata:
