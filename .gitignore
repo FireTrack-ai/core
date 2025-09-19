@@ -10,6 +10,8 @@
 *.so
 *.dylib
 
+.env.local
+
 # Go module cache
 /pkg/
 /vendor/
@@ -33,7 +35,7 @@
 
 # Env / secrets
 .env
-.env.*
+.env
 secrets.json
 config.yaml
 configs/.env.yml

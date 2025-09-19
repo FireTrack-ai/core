@@ -1,6 +1,9 @@
 -include .env
 export $(shell sed 's/=.*//' .env)
 
+DB_URL=postgres://$(DB_USER):$(DB_PASS)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+MIGRATIONS_PATH=file://migrations
+
 start:
 	cp ./configs/.env.yml.dist ./configs/.env.yml
 	make build
