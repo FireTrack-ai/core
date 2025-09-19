@@ -1,117 +1,139 @@
-# 📦 Event-Driven Orders Service (Go + Postgres + Kafka)
-![Go Version](https://img.shields.io/badge/go-1.24-blue)
-![Docker](https://img.shields.io/badge/containerized-docker-blue)
+# 🔥 Firetrack.ai — AI-Powered Dividend & Portfolio Tracker
 
-A minimal event-driven microservice built in Go using the **Transactional Outbox Pattern**, PostgreSQL, and Kafka. Designed for learning and practicing **strong consistency** in distributed systems through **clean architecture** and **Docker-based environments**.
+![Go](https://img.shields.io/badge/backend-Go-blue)
+![Postgres](https://img.shields.io/badge/database-PostgreSQL-blue)
+![Docker](https://img.shields.io/badge/containerized-Docker-blue)
 
----
-
-## 🧱 Features
-
-- Create order with transactional outbox
-- Kafka publisher for asynchronous event delivery
-- PostgreSQL with SQL migrations (via golang-migrate)
-- Clean, layered architecture (domain → usecase → infra)
-- Live reloading in development via [`air`](https://github.com/cosmtrek/air)
-- Separate containers for app, consumer, migrator
-- Docker Compose setup for local dev
-
---
-
-## 🚀 Stack
-
-- **Go 1.24+**
-- **PostgreSQL**
-- **Kafka (Redpanda)**
-- **golang-migrate**
-- **Air (live reload)**
-- **Docker + Docker Compose**
+Firetrack.ai is an application for automatic import and analysis of investment portfolios.  
+It aggregates data from multiple brokers and markets, builds a dividend calendar, calculates returns, and provides **AI insights** on how to improve your portfolio (rebalancing, taxes, currencies).
 
 ---
 
-## 📂 Project Structure
+## ✨ Features
 
-```
-.
-├── cmd/                # Application entrypoints (app / consumer)
-├── internal/
-│   ├── domain/         # Business entities and logic
-│   ├── usecase/        # Use cases
-│   ├── infrastructure/ # Postgres, Kafka, Outbox, etc.
-│   └── setup/          # Dependency injection, wiring
-├── migrations/         # SQL migration files
-├── configs/            # YAML config files
-├── docker/
-│   ├── app/            # Dockerfile for main app
-│   ├── consumer/       # Dockerfile for Kafka consumer
-│   └── migrator/       # Dockerfile for DB migrator
-├── .air.toml           # Air config for hot reload
-├── docker-compose.yml
-└── Makefile
+- 📥 **Automatic portfolio import**  
+  Supports API integration, CSV/Excel uploads, and screenshot recognition.
+- 🌍 **Multi-market support**  
+  Kazakhstan, Russia, South Africa, Europe, and more.
+- 📊 **Dividend calendar**  
+  Forecasts monthly and yearly payouts.
+- 🤖 **AI Insights**  
+  GPT-powered analysis: detect tax/currency losses, find opportunities to increase returns.
+- 🆓 **Free tier that works**  
+  Free plan includes 1 portfolio and up to 50 assets.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Go** — backend
+- **PostgreSQL** — database
+- **golang-migrate** — database migrations
+- **Docker + Docker Compose** — environment
+- **OpenAI GPT API** — AI insights
+
+---
+
+## 📦 Installation
+
+1. Clone the repo
+2. Create `.env` file with database settings:
+
+```dotenv
+DB_USER=postgres
+DB_PASS=postgres
+DB_NAME=firetrack
+DB_HOST=localhost
+DB_PORT=5432
+DB_SSLMODE=disable
 ```
 
----
-
-## 🐳 Docker Compose Setup
-
-Containers:
-
-- `postgres`: the main database
-- `redpanda`: Kafka broker
-- `migrator`: runs once to apply DB migrations via `wait-and-migrate.sh`
-- `app`: main API server
-- `consumer`: Kafka consumer reading from outbox topic
-
----
-
-## 🔁 Air (Live Reload)
-
-Used for development with live code reloading.
-
-1. Install `air`:
-
-   ```bash
-   go install github.com/cosmtrek/air@latest
-   ```
-
-2. Config is placed in `.air.toml`
-
-3. Dockerfile uses:
-
-   ```Dockerfile
-   CMD ["air"]
-   ```
-
-Make sure the `.air.toml` is **not overwritten** by volumes in `docker-compose.yml`.
-
----
-
-## 📦 Makefile Commands
+3. Start containers:
 
 ```bash
-make start   # init + build
-make build   # docker-compose up -d --build
-make up      # docker-compose up -d
+make up
 ```
 
 ---
 
-## 🧪 TODO
+## ⚙️ Database Migrations
 
-- Add update/delete order
-- Retry policy for Kafka delivery
-- Observability (logging, metrics)
-- Integration tests
+We use [golang-migrate](https://github.com/golang-migrate/migrate) to manage database migrations.
 
-# Database Migrations
+### Makefile (snippet)
 
-This project uses [golang-migrate](https://github.com/golang-migrate/migrate) to manage database migrations.
+```makefile
+# Load .env if present
+-include .env
+export $(shell sed 's/=.*//' .env)
 
-## Installation
+DB_URL=postgres://$(DB_USER):$(DB_PASS)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+MIGRATIONS_PATH=file://migrations
 
-Install the CLI:
+migrate-up:
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" up
 
+migrate-down:
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down 1
+
+migrate-reset:
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down -all
+
+migrate-up-n:
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" up 1
+
+migrate-create:
+	@read -p "Enter migration name: " name; \
+	migrate create -ext sql -dir migrations $$name
+```
+
+### Commands
+
+Apply all migrations:
 ```bash
-brew install golang-migrate
-# or
-go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+make migrate-up
+```
+
+Rollback the last migration:
+```bash
+make migrate-down
+```
+
+Rollback all migrations:
+```bash
+make migrate-reset
+```
+
+Apply one migration step up:
+```bash
+make migrate-up-n
+```
+
+Create a new migration:
+```bash
+make migrate-create
+# Enter a name, e.g. add_dividends_table
+```
+
+### Migration files format
+
+```
+migrations/{timestamp}_{name}.up.sql
+migrations/{timestamp}_{name}.down.sql
+```
+
+---
+
+## 🔮 Roadmap
+
+- 📈 Extended dividend calendar (monthly cashflow view)
+- 💡 AI advisor: rebalancing, tax optimization
+- 🌍 Support for EU and Asian brokers
+- 🧾 Export to Excel/Sheets/Notion
+- 🏦 White-label solution for wealth managers
+
+---
+
+## ✅ License
+
+MIT
